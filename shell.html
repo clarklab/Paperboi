@@ -1,0 +1,54 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>PAPERBOI</title>
+<style>
+  :root{color-scheme:dark}
+  html,body{margin:0;height:100%;background:#14161e;overflow:hidden;touch-action:none;
+    -webkit-user-select:none;user-select:none;display:flex;align-items:center;justify-content:center}
+  canvas{image-rendering:pixelated;height:100dvh;max-width:100vw;object-fit:contain;background:#14161e}
+</style>
+<canvas id="c" width="160" height="288"></canvas>
+<script>
+const B64="__WASM__";
+const bytes=Uint8Array.from(atob(B64),c=>c.charCodeAt(0));
+WebAssembly.instantiate(bytes).then(({instance:{exports:e}})=>{
+  const cv=document.getElementById("c"),ctx=cv.getContext("2d");
+  const img=new ImageData(new Uint8ClampedArray(e.memory.buffer,e.fbp(),160*288*4),160,288);
+  e.boot((Math.random()*1e9)|0);
+
+  // input: drag anywhere = joystick (x steers, y brakes/pedals), quick tap = throw
+  let jx=0,jy=0,taps=0,p=null;
+  const P=ev=>({x:ev.clientX,y:ev.clientY,t:performance.now()});
+  onpointerdown=ev=>{p=P(ev)};
+  onpointermove=ev=>{if(p){jx=Math.max(-127,Math.min(127,(ev.clientX-p.x)*2.5|0));
+                           jy=Math.max(-127,Math.min(127,(ev.clientY-p.y)*2.5|0))}};
+  onpointerup=ev=>{if(p&&performance.now()-p.t<250&&Math.abs(ev.clientX-p.x)<12&&Math.abs(ev.clientY-p.y)<12)taps++;
+                   p=null;jx=jy=0};
+  const K={ArrowLeft:[-110,0],ArrowRight:[110,0],ArrowUp:[0,-110],ArrowDown:[0,110]};
+  const kd=new Set();
+  onkeydown=ev=>{if(ev.code==="Space"&&!ev.repeat)taps++;if(K[ev.key]){kd.add(ev.key);ev.preventDefault()}};
+  onkeyup=ev=>kd.delete(ev.key);
+
+  // sound: square-wave chip synth keyed off the wasm event bits
+  let ac;const beep=(f,d,v=.04,slide=0)=>{const o=ac.createOscillator(),g=ac.createGain();
+    o.type="square";o.frequency.value=f;if(slide)o.frequency.linearRampToValueAtTime(slide,ac.currentTime+d);
+    g.gain.value=v;g.gain.exponentialRampToValueAtTime(1e-4,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)};
+  onpointerdown_audio=()=>{};
+  addEventListener("pointerdown",()=>{if(!ac)ac=new(AudioContext||webkitAudioContext)()},{once:false});
+
+  (function loop(){
+    let kx=0,ky=0;for(const k of kd){kx+=K[k][0];ky+=K[k][1]}
+    const ev=e.frame(jx||kx,jy||ky,taps);taps=0;
+    if(ac){if(ev&1)beep(700,.05);
+           if(ev&2)beep(1100,.09,.05,1600);
+           if(ev&4)beep(160,.3,.06,40);
+           if(ev&8)beep(2200,.12,.04,300);
+           if(ev&16)beep(520,.06,.05,900);
+           if(ev&32){beep(660,.12);setTimeout(()=>beep(880,.12),120);setTimeout(()=>beep(1320,.2),240)}
+           if(ev&64)beep(240,.07,.05,180)}
+    ctx.putImageData(img,0,0);
+    requestAnimationFrame(loop);
+  })();
+});
+</script>
