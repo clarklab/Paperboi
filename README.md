@@ -16,9 +16,12 @@ any phone or desktop browser. Open it and ride.
 
 ## Play
 
-- **Drag** anywhere — horizontal steers, vertical pedals/brakes
-- **Tap** — throw a paper (left, toward the houses)
-- Desktop: arrow keys + space
+- **Hold and drag** anywhere — your first finger is an analog stick:
+  horizontal steers, vertical pedals/brakes
+- **Tap** — throw a paper (left, toward the houses); while steering,
+  **any second finger** throws too
+- Desktop: arrows/WASD + space
+- The **?** button in-game explains why the whole thing is ~53 KB
 
 Hit **mailboxes** (250) and **porches/doorways** (100) of subscribers
 (the pastel houses). Smash windows of non-subscribers (grey houses) for 50 —
