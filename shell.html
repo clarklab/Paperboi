@@ -3,11 +3,55 @@
 <title>PAPERBOI</title>
 <style>
   :root{color-scheme:dark}
-  html,body{margin:0;height:100%;background:#14161e;overflow:hidden;touch-action:none;
-    -webkit-user-select:none;user-select:none;display:flex;align-items:center;justify-content:center}
-  canvas{image-rendering:pixelated;height:100dvh;max-width:100vw;object-fit:contain;background:#14161e}
+  html,body{margin:0;height:100%;background:#14161e;overflow:hidden;overscroll-behavior:none;
+    touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+    display:flex;align-items:center;justify-content:center;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  canvas{image-rendering:pixelated;height:100dvh;max-width:100vw;object-fit:contain}
+  #ab{position:fixed;right:10px;bottom:10px;z-index:2;width:36px;height:36px;cursor:pointer;
+    color:#8f93a3;background:#1d2029;border:2px solid #3a3e4e;font:bold 17px/1 ui-monospace,monospace}
+  #about{position:fixed;inset:0;z-index:3;display:none;background:rgba(20,22,30,.96);color:#c9ccd8;
+    padding:max(28px,env(safe-area-inset-top)) 24px 28px;line-height:1.6;font-size:13.5px;overflow:auto}
+  #about.on{display:block}
+  #about h1{color:#fff;font-size:17px;letter-spacing:3px;margin:0 0 4px}
+  #about h2{color:#ffdc5a;font-size:13.5px;letter-spacing:1px;margin:22px 0 6px}
+  #about p{margin:6px 0;max-width:34em}
+  #about b{color:#ffdc5a;font-weight:600}
+  #about .k{color:#78e08f}
+  #about table{border-collapse:collapse;margin:10px 0;font-variant-numeric:tabular-nums}
+  #about td{padding:2px 14px 2px 0;color:#c9ccd8}
+  #about td:last-child{color:#78e08f}
+  #about button{margin-top:18px;padding:9px 22px;cursor:pointer;color:#fff;background:#1d2029;
+    border:2px solid #ffdc5a;font:bold 13px ui-monospace,monospace;letter-spacing:2px}
 </style>
 <canvas id="c" width="160" height="288"></canvas>
+<button id="ab" aria-label="About this game">?</button>
+<div id="about">
+  <h1>PAPERBOI</h1>
+  <p>a faithful <i>Paperboy</i> homage &mdash; and an experiment in how thin a game can be.</p>
+  <h2>WHY THIS IS NOVEL</h2>
+  <p>There is no engine, no framework, no library, and <b>no assets</b> &mdash; not one image,
+     sound file, or sprite sheet was loaded to show you this. The whole game is
+     <b>one small C file</b> compiled directly to WebAssembly with plain clang
+     (<span class="k">--target=wasm32 -nostdlib</span>, no emscripten, not even a C standard library).</p>
+  <p>The world isn't stored anywhere &mdash; <b>it's math</b>. Each frame, the renderer inverts the
+     2:1 isometric transform per pixel, so lawns, driveways, doormats, flowers, sidewalk joints
+     and lane dashes are just arithmetic on world coordinates. Houses and cars are procedural
+     boxes depth-sorted on the fly. Even the font is 15 bits per glyph.</p>
+  <p>JavaScript contains <b>zero game logic</b>: it blits the framebuffer, reads your finger,
+     and beeps square waves when the wasm raises an event bit. The wasm module is embedded in
+     this very page as text &mdash; view source: what you see is the entire game.</p>
+  <h2>HOW THIN</h2>
+  <table>
+    <tr><td>game logic (C)</td><td>__CL__ lines</td></tr>
+    <tr><td>page + input + synth</td><td>__SL__ lines</td></tr>
+    <tr><td>compiled wasm</td><td>__WK__ KB</td></tr>
+    <tr><td>total download, everything</td><td>__TK__ KB</td></tr>
+    <tr><td>assets fetched</td><td>0</td></tr>
+  </table>
+  <p>&mdash; smaller than a screenshot of itself.</p>
+  <button id="ok">BACK TO THE ROUTE</button>
+</div>
 <script>
 const B64="__WASM__";
 const bytes=Uint8Array.from(atob(B64),c=>c.charCodeAt(0));
@@ -16,39 +60,71 @@ WebAssembly.instantiate(bytes).then(({instance:{exports:e}})=>{
   const img=new ImageData(new Uint8ClampedArray(e.memory.buffer,e.fbp(),160*288*4),160,288);
   e.boot((Math.random()*1e9)|0);
 
-  // input: drag anywhere = joystick (x steers, y brakes/pedals), quick tap = throw
-  let jx=0,jy=0,taps=0,p=null;
-  const P=ev=>({x:ev.clientX,y:ev.clientY,t:performance.now()});
-  onpointerdown=ev=>{p=P(ev)};
-  onpointermove=ev=>{if(p){jx=Math.max(-127,Math.min(127,(ev.clientX-p.x)*2.5|0));
-                           jy=Math.max(-127,Math.min(127,(ev.clientY-p.y)*2.5|0))}};
-  onpointerup=ev=>{if(p&&performance.now()-p.t<250&&Math.abs(ev.clientX-p.x)<12&&Math.abs(ev.clientY-p.y)<12)taps++;
-                   p=null;jx=jy=0};
-  const K={ArrowLeft:[-110,0],ArrowRight:[110,0],ArrowUp:[0,-110],ArrowDown:[0,110]};
-  const kd=new Set();
-  onkeydown=ev=>{if(ev.code==="Space"&&!ev.repeat)taps++;if(K[ev.key]){kd.add(ev.key);ev.preventDefault()}};
-  onkeyup=ev=>kd.delete(ev.key);
+  /* ---- touch: first finger is an analog stick (dead zone + clamp), any
+     extra finger throws instantly, quick primary tap throws too ---- */
+  const DZ=6,SENS=2.6,ax=v=>Math.abs(v)<DZ?0:Math.max(-127,Math.min(127,(v-Math.sign(v)*DZ)*SENS|0));
+  let steer=null,jx=0,jy=0,taps=0;
+  const ui=t=>t&&t.closest&&t.closest("#ab,#about");
+  addEventListener("pointerdown",ev=>{
+    if(ui(ev.target))return;
+    if(!ac){ac=new(window.AudioContext||window.webkitAudioContext)()}if(ac.state==="suspended")ac.resume();
+    if(steer===null)steer={id:ev.pointerId,x:ev.clientX,y:ev.clientY,t:performance.now()};
+    else taps++;                                   // second finger = throw while steering
+    ev.preventDefault();});
+  addEventListener("pointermove",ev=>{
+    if(steer&&ev.pointerId===steer.id){jx=ax(ev.clientX-steer.x);jy=ax(ev.clientY-steer.y)}});
+  const lift=ev=>{
+    if(steer&&ev.pointerId===steer.id){
+      if(ev.type==="pointerup"&&performance.now()-steer.t<250&&
+         Math.hypot(ev.clientX-steer.x,ev.clientY-steer.y)<12)taps++;
+      steer=null;jx=jy=0}};
+  addEventListener("pointerup",lift);addEventListener("pointercancel",lift);
+  addEventListener("contextmenu",ev=>ev.preventDefault());
+  addEventListener("blur",()=>{steer=null;jx=jy=0;kd.clear()});
 
-  // sound: square-wave chip synth keyed off the wasm event bits
-  let ac;const beep=(f,d,v=.04,slide=0)=>{const o=ac.createOscillator(),g=ac.createGain();
-    o.type="square";o.frequency.value=f;if(slide)o.frequency.linearRampToValueAtTime(slide,ac.currentTime+d);
+  /* keyboard: arrows/WASD + space */
+  const K={ArrowLeft:[-110,0],ArrowRight:[110,0],ArrowUp:[0,-110],ArrowDown:[0,110],
+           a:[-110,0],d:[110,0],w:[0,-110],s:[0,110]};
+  const kd=new Set();
+  addEventListener("keydown",ev=>{if(ev.code==="Space"&&!ev.repeat)taps++;
+    if(K[ev.key]){kd.add(ev.key);ev.preventDefault()}});
+  addEventListener("keyup",ev=>kd.delete(ev.key));
+
+  /* square-wave chip synth keyed off wasm event bits */
+  let ac;const beep=(f,d,v=.04,slide=0)=>{if(!ac)return;
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type="square";o.frequency.value=f;
+    if(slide)o.frequency.linearRampToValueAtTime(slide,ac.currentTime+d);
     g.gain.value=v;g.gain.exponentialRampToValueAtTime(1e-4,ac.currentTime+d);
     o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)};
-  onpointerdown_audio=()=>{};
-  addEventListener("pointerdown",()=>{if(!ac)ac=new(AudioContext||webkitAudioContext)()},{once:false});
+  const sfx=ev=>{if(ev&1)beep(700,.05);if(ev&2)beep(1100,.09,.05,1600);
+    if(ev&4)beep(160,.3,.06,40);if(ev&8)beep(2200,.12,.04,300);
+    if(ev&16)beep(520,.06,.05,900);if(ev&64)beep(240,.07,.05,180);
+    if(ev&32){beep(660,.12);setTimeout(()=>beep(880,.12),120);setTimeout(()=>beep(1320,.2),240)}};
 
-  (function loop(){
-    let kx=0,ky=0;for(const k of kd){kx+=K[k][0];ky+=K[k][1]}
-    const ev=e.frame(jx||kx,jy||ky,taps);taps=0;
-    if(ac){if(ev&1)beep(700,.05);
-           if(ev&2)beep(1100,.09,.05,1600);
-           if(ev&4)beep(160,.3,.06,40);
-           if(ev&8)beep(2200,.12,.04,300);
-           if(ev&16)beep(520,.06,.05,900);
-           if(ev&32){beep(660,.12);setTimeout(()=>beep(880,.12),120);setTimeout(()=>beep(1320,.2),240)}
-           if(ev&64)beep(240,.07,.05,180)}
-    ctx.putImageData(img,0,0);
+  /* fixed 60 Hz simulation regardless of display refresh (120 Hz phones etc.) */
+  const STEP=1000/60;let acc=0,last=performance.now();
+  document.addEventListener("visibilitychange",()=>{last=performance.now();acc=0});
+  (function loop(now){
     requestAnimationFrame(loop);
-  })();
+    acc=Math.min(acc+now-last,100);last=now;
+    let kx=0,ky=0;for(const k of kd){kx+=K[k][0];ky+=K[k][1]}
+    let ev=0;
+    while(acc>=STEP){ev|=e.frame(jx||kx,jy||ky,taps);taps=0;acc-=STEP}
+    if(ev)sfx(ev);
+    ctx.putImageData(img,0,0);
+    if(steer){ /* joystick ghost: ring at touch origin, nub at deflection */
+      const r=cv.getBoundingClientRect(),s=Math.min(r.width/160,r.height/288);
+      const cx=(steer.x-r.left-(r.width-160*s)/2)/s,cy=(steer.y-r.top-(r.height-288*s)/2)/s;
+      ctx.globalAlpha=.4;ctx.strokeStyle="#fff";ctx.lineWidth=1;
+      ctx.strokeRect(cx-9|0,cy-9|0,18,18);
+      ctx.fillStyle="#fff";ctx.fillRect((cx+jx/9|0)-2,(cy+jy/9|0)-2,5,5);
+      ctx.globalAlpha=1}
+  })(last);
+
+  /* about panel */
+  const ab=document.getElementById("about");
+  document.getElementById("ab").onclick=()=>ab.classList.add("on");
+  document.getElementById("ok").onclick=()=>ab.classList.remove("on");
 });
 </script>

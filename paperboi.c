@@ -187,8 +187,9 @@ static void render(void){
  if(mode==0){scrim();
   ctxt(70,"PAPERBOI",RGB(255,255,255),4);ctxt(104,"AN ISOMETRIC PAPER ROUTE",RGB(255,220,90),1);
   if(tick&32)ctxt(170,"TAP TO RIDE",RGB(255,255,255),2);
-  ctxt(230,"DRAG STEERS  TAP THROWS",RGB(200,200,210),1);
-  ctxt(240,"HIT MAILBOXES AND PORCHES",RGB(200,200,210),1);}
+  ctxt(226,"HOLD AND DRAG TO STEER",RGB(200,200,210),1);
+  ctxt(236,"TAP THROWS  2ND FINGER TOO",RGB(200,200,210),1);
+  ctxt(246,"HIT MAILBOXES AND PORCHES",RGB(200,200,210),1);}
  if(mode==2){scrim();i32 d=0,s=0;
   for(i32 i=0;i<NH;i++){if(subs[i]&&deliv[i]&&!smash[i])d++;if(subs[i])s++;}
   ctxt(90,DAYN[day],RGB(255,255,255),2);ctxt(112,"COMPLETE",RGB(255,220,90),2);
@@ -210,7 +211,7 @@ static void litter(i32 u2,i32 v2){for(i32 i=0;i<NL;i++)if(!lt[i]){lt[i]=240;lu[i
 static void step(i32 jx,i32 jy,i32 taps){
  i32 pu2=cam2+PA2,pv2=pv16>>4;
  spd16=clampi(22-(jy>>3)+day,10,44);cam16+=spd16;cam2=cam16>>4;
- pv16=clampi(pv16+((jx*3)>>4),-64*16,140*16);pv2=pv16>>4;
+ pv16=clampi(pv16+((jx*5)>>4),-64*16,140*16);pv2=pv16>>4;
  if(banner)banner--; if(invuln)invuln--;
  if(taps&&papers>0&&!pon[0]){/* throw left, slight forward carry */
   for(i32 i=0;i<NP;i++)if(!pon[i]){pon[i]=1;pu16[i]=(pu2+6)<<4;pw16[i]=pv16;pz16[i]=10<<4;pvz[i]=34;papers--;ev|=1;break;}}
