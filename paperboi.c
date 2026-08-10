@@ -126,8 +126,7 @@ static void drplayer(void){
  rect(x-2,y-10,4,5,RGB(66,124,224));rect(x+2,y-9+ph,2,2,RGB(66,124,224));   /* torso+arm */
  disc(x,y-12,2,RGB(242,192,150));rect(x-2,y-15,5,2,RGB(235,235,235));rect(x+1,y-13,3,1,RGB(200,44,40));}
 
-typedef struct{i32 sy,kind,idx;}Dr;
-static Dr dl[48]; static i32 ndl;
+typedef struct{i32 sy,kind,idx;}Dr; static Dr dl[48]; static i32 ndl;
 static void put(i32 sy,i32 kind,i32 idx){if(ndl<48){dl[ndl].sy=sy;dl[ndl].kind=kind;dl[ndl].idx=idx;ndl++;}}
 
 /* ---- game setup ---- */
@@ -142,7 +141,7 @@ static void genday(void){
  for(i32 i=0;i<NH;i++)deliv[i]=smash[i]=0;
  for(i32 i=0;i<NP;i++)pon[i]=0;
  for(i32 i=0;i<NL;i++)lt[i]=0;
- cam16=0;cam2=0;papers=10;pv16=8<<4;spd16=22;invuln=0;banner=90;
+ cam16=cam2=0;papers=10;pv16=8<<4;spd16=22;invuln=0;banner=90;
  cu16[0]=(900+(i32)(rnd()%300))<<4;cu16[1]=-200*16;}
 static void newgame(void){
  day=0;score=0;lives=3;rs=12345;

@@ -46,6 +46,7 @@
     <tr><td>game logic (C)</td><td>__CL__ lines</td></tr>
     <tr><td>page + input + synth</td><td>__SL__ lines</td></tr>
     <tr><td>compiled wasm</td><td>__WK__ KB</td></tr>
+    <tr><td>&mdash; shipped deflated in this page</td><td>__DK__ KB</td></tr>
     <tr><td>total download, everything</td><td>__TK__ KB</td></tr>
     <tr><td>assets fetched</td><td>0</td></tr>
   </table>
@@ -53,9 +54,10 @@
   <button id="ok">BACK TO THE ROUTE</button>
 </div>
 <script>
-const B64="__WASM__";
-const bytes=Uint8Array.from(atob(B64),c=>c.charCodeAt(0));
-WebAssembly.instantiate(bytes).then(({instance:{exports:e}})=>{
+/* the wasm ships deflated inside this page; the browser inflates it natively */
+new Response(new Blob([Uint8Array.from(atob("__WASM__"),c=>c.charCodeAt(0))]).stream()
+  .pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer()
+  .then(b=>WebAssembly.instantiate(b)).then(({instance:{exports:e}})=>{
   const cv=document.getElementById("c"),ctx=cv.getContext("2d");
   const img=new ImageData(new Uint8ClampedArray(e.memory.buffer,e.fbp(),160*288*4),160,288);
   e.boot((Math.random()*1e9)|0);

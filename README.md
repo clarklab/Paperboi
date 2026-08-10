@@ -5,14 +5,15 @@ grates, oncoming traffic, a Monday-to-Sunday route — built the novel way:
 
 **One freestanding C file. No engine, no libc, no libraries, no assets.**
 Every pixel on screen — the diagonally scrolling isometric world, the houses,
-the sprites, even the font — is computed at runtime inside a ~36 KB
+the sprites, even the font — is computed at runtime inside an 11 KB
 WebAssembly module compiled straight from `paperboi.c` with stock clang
 (`--target=wasm32 -nostdlib`). No emscripten, no toolchain beyond
 `clang` + `wasm-ld` + `python3`.
 
-The build embeds the wasm as base64 into a tiny HTML shell, so **the entire
-game is a single 49 KB `index.html`** that runs offline, from `file://`, on
-any phone or desktop browser. Open it and ride.
+The build deflates the wasm to 5 KB and embeds it in a tiny HTML shell
+(the browser inflates it natively via `DecompressionStream`), so **the
+entire game is a single 15 KB `index.html`** that runs offline, from
+`file://`, on any phone or desktop browser. Open it and ride.
 
 ## Play
 
@@ -21,7 +22,7 @@ any phone or desktop browser. Open it and ride.
 - **Tap** — throw a paper (left, toward the houses); while steering,
   **any second finger** throws too
 - Desktop: arrows/WASD + space
-- The **?** button in-game explains why the whole thing is ~53 KB
+- The **?** button in-game explains why the whole thing is 15 KB
 
 Hit **mailboxes** (250) and **porches/doorways** (100) of subscribers
 (the pastel houses). Smash windows of non-subscribers (grey houses) for 50 —
