@@ -18,9 +18,16 @@
   #about p{margin:6px 0;max-width:34em}
   #about b{color:#ffdc5a;font-weight:600}
   #about .k{color:#78e08f}
+  #about .pipe{margin:12px 0 2px;padding:8px 11px;border:2px solid #3a3e4e;background:#1d2029;
+    color:#78e08f;font-size:12.5px;max-width:30em}
+  #about .pipe i{color:#8f93a3;font-style:normal}
+  #about .cards{display:flex;flex-direction:column;gap:10px;margin:8px 0;max-width:36em}
+  #about .cards>div{border:2px solid #3a3e4e;background:#1d2029;padding:10px 13px}
+  #about h3{margin:0 0 4px;font-size:12.5px;letter-spacing:2px;color:#fff}
+  #about .cards p{margin:0;font-size:12.5px;color:#a9adbc}
   #about table{border-collapse:collapse;margin:10px 0;font-variant-numeric:tabular-nums}
   #about td{padding:2px 14px 2px 0;color:#c9ccd8}
-  #about td:last-child{color:#78e08f}
+  #about td:last-child{color:#78e08f;white-space:nowrap}
   #about button{margin-top:18px;padding:9px 22px;cursor:pointer;color:#fff;background:#1d2029;
     border:2px solid #ffdc5a;font:bold 13px ui-monospace,monospace;letter-spacing:2px}
 </style>
@@ -29,18 +36,22 @@
 <div id="about">
   <h1>PAPERBOI</h1>
   <p>a faithful <i>Paperboy</i> homage &mdash; and an experiment in how thin a game can be.</p>
+  <div class="pipe">paperboi.c <i>&rarr;</i> clang <i>&rarr;</i> __WK__ KB wasm <i>&rarr;</i> deflate <i>&rarr;</i> this page</div>
   <h2>WHY THIS IS NOVEL</h2>
-  <p>There is no engine, no framework, no library, and <b>no assets</b> &mdash; not one image,
-     sound file, or sprite sheet was loaded to show you this. The whole game is
-     <b>one small C file</b> compiled directly to WebAssembly with plain clang
-     (<span class="k">--target=wasm32 -nostdlib</span>, no emscripten, not even a C standard library).</p>
-  <p>The world isn't stored anywhere &mdash; <b>it's math</b>. Each frame, the renderer inverts the
-     2:1 isometric transform per pixel, so lawns, driveways, doormats, flowers, sidewalk joints
-     and lane dashes are just arithmetic on world coordinates. Houses and cars are procedural
-     boxes depth-sorted on the fly. Even the font is 15 bits per glyph.</p>
-  <p>JavaScript contains <b>zero game logic</b>: it blits the framebuffer, reads your finger,
-     and beeps square waves when the wasm raises an event bit. The wasm module is embedded in
-     this very page as text &mdash; view source: what you see is the entire game.</p>
+  <div class="cards">
+    <div><h3>NO ENGINE. NO ASSETS.</h3>
+      <p>One small C file compiled straight to WebAssembly with plain clang
+      (<span class="k">--target=wasm32 -nostdlib</span>). No emscripten, no libc, no framework
+      &mdash; not one image, sound, or sprite sheet is loaded.</p></div>
+    <div><h3>THE WORLD IS MATH</h3>
+      <p>Nothing is stored. Each frame inverts the 2:1 isometric transform per pixel, so lawns,
+      driveways, and lane dashes are arithmetic on world coordinates. Houses and cars are
+      procedural boxes; the font is 15 bits per glyph.</p></div>
+    <div><h3>JS HOLDS ZERO GAME LOGIC</h3>
+      <p>JavaScript only blits the framebuffer, reads your finger, and beeps when the wasm
+      raises an event bit. The module is embedded in this page as text &mdash; view source:
+      that's the whole game.</p></div>
+  </div>
   <h2>HOW THIN</h2>
   <table>
     <tr><td>game logic (C)</td><td>__CL__ lines</td></tr>
