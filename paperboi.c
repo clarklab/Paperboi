@@ -19,6 +19,9 @@ static i32 subs[NH],deliv[NH],smash[NH];
 static i32 ot[NOB],ou16[NOB],ov16[NOB],ost[NOB];      /* 1 hydrant 2 trash 3 grate 4 bundle 5 dog */
 static i32 pon[NP],pu16[NP],pw16[NP],pz16[NP],pvz[NP]; /* papers in flight */
 static i32 lu[NL],lv[NL],lt[NL];                       /* landed-paper litter */
+static i32 fu[6],fv[6],fz[6],fk[6],ft[6];              /* score popups + impact burst */
+static void pop(i32 u2,i32 v2,i32 z,i32 val){
+ for(i32 i=0;i<6;i++)if(!ft[i]){ft[i]=50;fu[i]=u2;fv[i]=v2;fz[i]=z;fk[i]=val;return;}}
 static i32 cu16[2]; static const i32 CV[2]={64,116};   /* cars: near oncoming, far lane */
 static const char*DAYN[7]={"MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"};
 static const u32 PAST[5]={RGB(150,220,180),RGB(235,170,190),RGB(240,225,170),RGB(160,200,235),RGB(200,180,230)};
@@ -78,7 +81,7 @@ static void house(i32 i){
   for(i32 j=0;j<34;j++){u32 c=wall;i32 wx=mod(t,40);
    if(t>=88&&t<106&&j>=12){c=RGB(120,72,44);if(j>=20&&j<24&&t>=100&&t<103)c=RGB(230,200,90);}
    else if(t<84&&wx>=10&&wx<26&&j>=8&&j<20)
-    c=smash[i]?RGB(18,18,26):((j^(wx>>2))&6)?RGB(150,210,235):RGB(196,236,250);
+    c=smash[i]?(((j*5+wx*3)%11)?RGB(18,18,26):RGB(215,232,244)):((j^(wx>>2))&6)?RGB(150,210,235):RGB(196,236,250);
    else if(j==7||j==21)c=side;
    px(xx,yt+j,c);}}
  for(i32 t=0;t<124;t++)for(i32 s=0;s<88;s++){i32 a=a0+t-2,v2=-152+s;
@@ -140,7 +143,7 @@ static void genday(void){
   if(i%3==1&&(i32)(rnd()%3)<=day/2){ot[n]=5;ou16[n]=(b+60)<<4;ov16[n]=-30*16;ost[n]=0;n++;}}
  for(i32 i=0;i<NH;i++)deliv[i]=smash[i]=0;
  for(i32 i=0;i<NP;i++)pon[i]=0;
- for(i32 i=0;i<NL;i++)lt[i]=0;
+ for(i32 i=0;i<NL;i++){lt[i]=0;if(i<6)ft[i]=0;}
  cam2=-260;cam16=cam2*16;papers=10;pv16=8<<4;spd16=22;invuln=0;banner=90;
  cu16[0]=(900+(i32)(rnd()%300))<<4;cu16[1]=-200*16;}
 static void newgame(void){
@@ -177,6 +180,13 @@ static void render(void){
    case 3:drcar(d.idx);break;
    case 4:drpaper(isx(pu16[d.idx]>>4,pw16[d.idx]>>4),d.sy,pz16[d.idx]>>4);break;
    case 5:rect(isx(lu[d.idx],lv[d.idx])-1,d.sy-1,3,2,RGB(240,240,230));break;}}
+ /* score popups: impact burst, then rising blinking points */
+ for(i32 i=0;i<6;i++)if(ft[i]){ft[i]--;
+  i32 x=isx(fu[i],fv[i]),y=isy(fu[i],fv[i])-fz[i];
+  if(ft[i]>44){i32 r=2+(49-ft[i])*2;u32 w=RGB(255,255,255);
+   px(x-r,y,w);px(x+r,y,w);px(x,y-r,w);px(x,y+r,w);
+   px(x-r,y-r,w);px(x+r,y-r,w);px(x-r,y+r,w);px(x+r,y+r,w);}
+  else num(x-6,y-8-((44-ft[i])>>2),fk[i],fk[i]>99?3:2,(ft[i]&4)?RGB(255,255,255):RGB(255,220,90),1);}
  /* HUD */
  rect(0,0,W,11,RGB(24,26,34));num(2,3,score,6,RGB(255,255,255),1);
  txt(W-2-tlen(DAYN[day])*4,3,DAYN[day],RGB(255,220,90),1);
@@ -188,7 +198,8 @@ static void render(void){
   if(tick&32)ctxt(170,"TAP TO RIDE",RGB(255,255,255),2);
   ctxt(226,"HOLD AND DRAG TO STEER",RGB(200,200,210),1);
   ctxt(236,"TAP THROWS  2ND FINGER TOO",RGB(200,200,210),1);
-  ctxt(246,"HIT MAILBOXES AND PORCHES",RGB(200,200,210),1);}
+  ctxt(246,"MAILBOX 250  PORCH 100",RGB(255,220,90),1);
+  ctxt(256,"SMASH NON SUB WINDOWS 50",RGB(255,220,90),1);}
  if(mode==2){scrim();i32 d=0,s=0;
   for(i32 i=0;i<NH;i++){if(subs[i]&&deliv[i]&&!smash[i])d++;if(subs[i])s++;}
   ctxt(90,DAYN[day],RGB(255,255,255),2);ctxt(112,"COMPLETE",RGB(255,220,90),2);
@@ -218,14 +229,14 @@ static void step(i32 jx,i32 jy,i32 taps){
   pu16[i]+=spd16+8;pw16[i]-=54;pz16[i]+=pvz[i];pvz[i]-=3;
   i32 u2=pu16[i]>>4,v2=pw16[i]>>4,z=pz16[i]>>4,um=mod(u2,CELL),hi=u2/CELL,ok=u2>=0&&hi<NH;
   if(ok&&subs[hi]&&um>=124&&um<138&&v2>-22&&v2<-2&&z>=4&&z<=20){ /* thwack: mailbox */
-   if(!deliv[hi]){deliv[hi]=1;score+=250;}ev|=2;pon[i]=0;continue;}
+   if(!deliv[hi]){deliv[hi]=1;score+=250;pop(u2,v2,z,250);}ev|=2;pon[i]=0;continue;}
   if(v2<=-62&&z<34){ /* the house wall plane */
    if(ok&&um>=10&&um<130){i32 t=um-10;
-    if(t>=88&&t<106&&z<26){if(!deliv[hi]&&subs[hi]){deliv[hi]=1;score+=100;}ev|=2;}
+    if(t>=88&&t<106&&z<26){if(!deliv[hi]&&subs[hi]){deliv[hi]=1;score+=100;pop(u2,v2,z,100);}ev|=2;}
     else if(t<84&&mod(t,40)>=10&&mod(t,40)<26&&z>=12&&z<=26&&!smash[hi]){
-     smash[hi]=1;ev|=8;if(!subs[hi])score+=50;}
+     smash[hi]=1;ev|=8;if(!subs[hi]){score+=50;pop(u2,v2,z,50);}}
     pon[i]=0;continue;}}
-  if(z<=0){if(ok&&subs[hi]&&!deliv[hi]&&v2>=-62&&v2<=-46&&um>=94&&um<=120){deliv[hi]=1;score+=100;ev|=2;}
+  if(z<=0){if(ok&&subs[hi]&&!deliv[hi]&&v2>=-62&&v2<=-46&&um>=94&&um<=120){deliv[hi]=1;score+=100;pop(u2,v2,0,100);ev|=2;}
    else litter(u2,v2);
    pon[i]=0;}}
  for(i32 i=0;i<NL;i++)if(lt[i])lt[i]--;
