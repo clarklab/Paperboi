@@ -52,7 +52,7 @@ static void scrim(void){for(i32 i=0;i<W*H;i++)fb[i]=dim(fb[i]);}
 
 /* ---- ground: pure function of world position ---- */
 static u32 ground(i32 u2,i32 v2){
- i32 um=mod(u2,CELL),hi=u2/CELL;
+ i32 um=mod(u2,CELL),hi=u2<0?NH:u2/CELL;
  if(v2<-70)return ((u2^v2)&7)?RGB(70,150,80):RGB(60,136,72);
  if(v2<-8){
   if(um>=140&&um<176)return ((u2^v2)&15)?RGB(160,158,150):RGB(140,138,132); /* driveway */
@@ -141,7 +141,7 @@ static void genday(void){
  for(i32 i=0;i<NH;i++)deliv[i]=smash[i]=0;
  for(i32 i=0;i<NP;i++)pon[i]=0;
  for(i32 i=0;i<NL;i++)lt[i]=0;
- cam16=cam2=0;papers=10;pv16=8<<4;spd16=22;invuln=0;banner=90;
+ cam2=-260;cam16=cam2*16;papers=10;pv16=8<<4;spd16=22;invuln=0;banner=90;
  cu16[0]=(900+(i32)(rnd()%300))<<4;cu16[1]=-200*16;}
 static void newgame(void){
  day=0;score=0;lives=3;rs=12345;
@@ -216,7 +216,7 @@ static void step(i32 jx,i32 jy,i32 taps){
   for(i32 i=0;i<NP;i++)if(!pon[i]){pon[i]=1;pu16[i]=(pu2+6)<<4;pw16[i]=pv16;pz16[i]=10<<4;pvz[i]=34;papers--;ev|=1;break;}}
  for(i32 i=0;i<NP;i++)if(pon[i]){
   pu16[i]+=spd16+8;pw16[i]-=54;pz16[i]+=pvz[i];pvz[i]-=3;
-  i32 u2=pu16[i]>>4,v2=pw16[i]>>4,z=pz16[i]>>4,um=mod(u2,CELL),hi=u2/CELL,ok=(u32)hi<NH;
+  i32 u2=pu16[i]>>4,v2=pw16[i]>>4,z=pz16[i]>>4,um=mod(u2,CELL),hi=u2/CELL,ok=u2>=0&&hi<NH;
   if(ok&&subs[hi]&&um>=124&&um<138&&v2>-22&&v2<-2&&z>=4&&z<=20){ /* thwack: mailbox */
    if(!deliv[hi]){deliv[hi]=1;score+=250;}ev|=2;pon[i]=0;continue;}
   if(v2<=-62&&z<34){ /* the house wall plane */
@@ -254,16 +254,18 @@ static void nextday(void){
  for(i32 i=0;i<NH;i++)if(subs[i]&&(!deliv[i]||smash[i]))subs[i]=0;
  if(perfect){score+=500;for(i32 i=0;i<NH;i++)if(!subs[i]){subs[i]=1;break;}}
  if(!nsubs()){mode=3;timer=30;return;}
- day++;if(day>6){mode=4;timer=30;return;}
+ day++;if(day>6){day=6;mode=4;timer=30;return;}
  genday();mode=1;}
 
 /* ---- exports ---- */
 EXP("fbp") i32 fbp(void){return (i32)fb;}
+EXP("st") i32 st(void){static i32*const p[16]={&mode,&day,&cam2,&pv16,&papers,&spd16,&lives,
+ ot,ou16,ov16,ost,subs,deliv,smash,pon,cu16};return (i32)p;} /* read-only view for the autopilot */
 EXP("boot") void boot(u32 seed){rs=seed|1;newgame();mode=0;tick=0;}
 EXP("frame") u32 frame(i32 jx,i32 jy,i32 taps){
  ev=0;tick++;
  if(mode==0){cam16+=20;cam2=cam16>>4;pv16=8<<4;
-  if(cam2>=NH*CELL)cam16=cam2=0;
+  if(cam2>=NH*CELL){cam2=-260;cam16=cam2*16;}
   if(taps){newgame();mode=1;}}
  else if(mode==1)step(jx,jy,taps);
  else if(mode==2){if(timer)timer--;if(!timer||taps)nextday();}

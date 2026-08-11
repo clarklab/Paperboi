@@ -22,7 +22,13 @@ entire game is a single 15 KB `index.html`** that runs offline, from
 - **Tap** — throw a paper (left, toward the houses); while steering,
   **any second finger** throws too
 - Desktop: arrows/WASD + space
-- The **?** button in-game explains why the whole thing is 15 KB
+- The **?** button in-game explains why the whole thing is ~20 KB
+- Idle on the title for 9 seconds and `bot.js` — a separate autopilot
+  "player" that feeds the game the same literal thumb inputs you do —
+  takes the controller as arcade attract mode (any touch or key hands
+  it back). Headless it plays perfect weeks: every subscriber served,
+  zero crashes. It aims by forward-simulating the exact throw the game
+  would spawn, so it only taps when the paper will score.
 
 Hit **mailboxes** (250) and **porches/doorways** (100) of subscribers
 (the pastel houses). Smash windows of non-subscribers (grey houses) for 50 —

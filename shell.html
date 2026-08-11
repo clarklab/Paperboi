@@ -56,6 +56,7 @@
   <table>
     <tr><td>game logic (C)</td><td>__CL__ lines</td></tr>
     <tr><td>page + input + synth</td><td>__SL__ lines</td></tr>
+    <tr><td>attract-mode autopilot (its own player)</td><td>__BL__ lines</td></tr>
     <tr><td>compiled wasm</td><td>__WK__ KB</td></tr>
     <tr><td>&mdash; shipped deflated in this page</td><td>__DK__ KB</td></tr>
     <tr><td>total download, everything</td><td>__TK__ KB</td></tr>
@@ -64,6 +65,7 @@
   <p>&mdash; smaller than a screenshot of itself.</p>
   <button id="ok">BACK TO THE ROUTE</button>
 </div>
+<script>__BOT__</script>
 <script>
 /* the wasm ships deflated inside this page; the browser inflates it natively */
 new Response(new Blob([Uint8Array.from(atob("__WASM__"),c=>c.charCodeAt(0))]).stream()
@@ -73,6 +75,15 @@ new Response(new Blob([Uint8Array.from(atob("__WASM__"),c=>c.charCodeAt(0))]).st
   const img=new ImageData(new Uint8ClampedArray(e.memory.buffer,e.fbp(),160*288*4),160,288);
   e.boot((Math.random()*1e9)|0);
 
+  /* the autopilot's read-only view of game state; if nobody starts within
+     9 s it takes the controller (arcade attract mode) until a human acts */
+  const P=new Int32Array(e.memory.buffer,e.st(),16),I=(k,n)=>new Int32Array(e.memory.buffer,P[k],n);
+  const V={mode:I(0,1),day:I(1,1),cam2:I(2,1),pv16:I(3,1),papers:I(4,1),spd16:I(5,1),lives:I(6,1),
+           ot:I(7,28),ou:I(8,28),ov:I(9,28),ost:I(10,28),subs:I(11,10),deliv:I(12,10),
+           smash:I(13,10),pon:I(14,4),cu:I(15,2)};
+  let idle=0,attract=false,swallow=-1;
+  const wake=()=>{attract=false;idle=0;e.boot((Math.random()*1e9)|0)};
+
   /* ---- touch: first finger is an analog stick (dead zone + clamp), any
      extra finger throws instantly, quick primary tap throws too ---- */
   const DZ=6,SENS=2.6,ax=v=>Math.abs(v)<DZ?0:Math.max(-127,Math.min(127,(v-Math.sign(v)*DZ)*SENS|0));
@@ -81,12 +92,15 @@ new Response(new Blob([Uint8Array.from(atob("__WASM__"),c=>c.charCodeAt(0))]).st
   addEventListener("pointerdown",ev=>{
     if(ui(ev.target))return;
     if(!ac){ac=new(window.AudioContext||window.webkitAudioContext)()}if(ac.state==="suspended")ac.resume();
+    ev.preventDefault();
+    if(attract){wake();swallow=ev.pointerId;return}  // human back: bot off, back to title
+    idle=0;
     if(steer===null)steer={id:ev.pointerId,x:ev.clientX,y:ev.clientY,t:performance.now()};
-    else taps++;                                   // second finger = throw while steering
-    ev.preventDefault();});
+    else taps++;});                                  // second finger = throw while steering
   addEventListener("pointermove",ev=>{
     if(steer&&ev.pointerId===steer.id){jx=ax(ev.clientX-steer.x);jy=ax(ev.clientY-steer.y)}});
   const lift=ev=>{
+    if(ev.pointerId===swallow){swallow=-1;return}
     if(steer&&ev.pointerId===steer.id){
       if(ev.type==="pointerup"&&performance.now()-steer.t<250&&
          Math.hypot(ev.clientX-steer.x,ev.clientY-steer.y)<12)taps++;
@@ -99,7 +113,8 @@ new Response(new Blob([Uint8Array.from(atob("__WASM__"),c=>c.charCodeAt(0))]).st
   const K={ArrowLeft:[-110,0],ArrowRight:[110,0],ArrowUp:[0,-110],ArrowDown:[0,110],
            a:[-110,0],d:[110,0],w:[0,-110],s:[0,110]};
   const kd=new Set();
-  addEventListener("keydown",ev=>{if(ev.code==="Space"&&!ev.repeat)taps++;
+  addEventListener("keydown",ev=>{if(attract){wake();return}idle=0;
+    if(ev.code==="Space"&&!ev.repeat)taps++;
     if(K[ev.key]){kd.add(ev.key);ev.preventDefault()}});
   addEventListener("keyup",ev=>kd.delete(ev.key));
 
@@ -123,7 +138,12 @@ new Response(new Blob([Uint8Array.from(atob("__WASM__"),c=>c.charCodeAt(0))]).st
     acc=Math.min(acc+now-last,100);last=now;
     let kx=0,ky=0;for(const k of kd){kx+=K[k][0];ky+=K[k][1]}
     let ev=0;
-    while(acc>=STEP){ev|=e.frame(jx||kx,jy||ky,taps);taps=0;acc-=STEP}
+    while(acc>=STEP){
+      let ix=jx||kx,iy=jy||ky,it=taps;
+      if(attract)[ix,iy,it]=paperboiBot(V);
+      else if(V.mode[0]===0){idle+=STEP;if(idle>9000)attract=true}
+      else idle=0;
+      ev|=e.frame(ix,iy,it);taps=0;acc-=STEP}
     if(ev)sfx(ev);
     ctx.putImageData(img,0,0);
     if(steer){ /* joystick ghost: ring at touch origin, nub at deflection */
